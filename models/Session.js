@@ -6,6 +6,10 @@ const sessionSchema = new mongoose.Schema({
     description: { type: String, required: true },
     image: { type: String },
     tag: { type: String, enum: ['upcoming', 'past'], default: 'upcoming' },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
 });
 
 const Session = mongoose.model('sessions', sessionSchema);

@@ -1,73 +1,183 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const sessionRoutes = require('./routes/sessionRoutes');
 const multer = require('multer');
-const Session = require('./models/Session');
 const cors = require('cors');
+const User = require('./models/User')
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
+const Post = require('./models/Post')
 
 const app = express();
-app.use(cors());
+
+const saltRounds = 10;
+const salt = bcrypt.genSaltSync(saltRounds);
+const secret = 'casd34r5h56u7juhybtve23456789i7juhytbgv8ik7juy'
+
 
 const PORT = process.env.PORT || 3001;
 
-mongoose.connect('mongodb://localhost:27017/sessionapp', {
+mongoose.connect('mongodb://localhost:27017/', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
-
-
 // mongodb://localhost:27017/sessionapp
 // mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/sessionapp
+
+app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
 app.use(express.json());
+app.use(cookieParser());
+
+
+
+// User Registration
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const userDoc = await User.create({
+            username,
+            password: bcrypt.hashSync(password, salt)
+        });
+        res.json(userDoc);
+    } catch (error) {
+        res.status(400).json(error);
+    }
+
+});
+
+// Login
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+    const userDoc = await User.findOne({ username });
+    const passOk = bcrypt.compareSync(password, userDoc.password)
+
+    if (passOk) {
+        // logged in
+        jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
+            if (err) throw err;
+            res.cookie('token', token).json({
+                id: userDoc._id,
+                username
+            });
+        })
+
+
+    } else {
+        res.status(400).json('Wrong Credentials');
+    }
+})
+
+
+// Get Profile
+app.get('/profile', (req, res) => {
+    const { token } = req.cookies;
+    jwt.verify(token, secret, {}, (err, info) => {
+        if (err) throw err;
+        res.json(info);
+    });
+})
+
+
+// Logout
+app.post('/logout', (req, res) => {
+    res.cookie('token', '').json('ok');
+})
 
 // Multer setup for handling file uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-app.post('/createSession', upload.single('image'), async (req, res) => {
+// New route for creating posts
+app.post('/createPost', upload.single('image'), async (req, res) => {
     try {
-        const { title, description, tag } = req.body;
-        const image = req.file ? req.file.buffer.toString('base64') : ''; // Convert image buffer to base64
-
-        const session = await Session.create({ title, description, image, tag });
-        res.json(session);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Add this endpoint in server.js
-app.get('/sessions', async (req, res) => {
-    try {
-        // const sessions = await Session.find({ tag: 'upcoming' }); // You may adjust the query as needed
-        const sessions = await Session.find();
-
-        res.json(sessions);
-    } catch (error) {
-        console.error('Error fetching sessions:', error.message);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-app.put('/updateSession/:id', upload.single('image'), async (req, res) => {
-    try {
-        const { title, description, tag } = req.body;
+        const { title, description, content, tag } = req.body;
         const image = req.file ? req.file.buffer.toString('base64') : '';
 
-        const updatedSession = await Session.findByIdAndUpdate(
-            req.params.id,
-            { title, description, image, tag },
-            { new: true }
-        );
-
-        res.json(updatedSession);
+        const post = await Post.create({ title, description, content, image, tag });
+        res.json(post);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+app.get('/posts', async (req, res) => {
+    try {
+        const posts = await Post.find({ tag: 'past' }).sort({ createdAt: -1 });
+        res.json(posts);
+    } catch (error) {
+        console.error('Error fetching posts:', error.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Add this route for upcoming events
+app.get('/upcoming-posts', async (req, res) => {
+    try {
+        const upcomingPosts = await Post.find({ tag: 'upcoming' }).sort({ createdAt: -1 }).limit(3);
+        res.json(upcomingPosts);
+    } catch (error) {
+        console.error('Error fetching upcoming posts:', error.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+// get single post page
+app.get('/post/:id', async (req, res) => {
+    const { id } = req.params;
+    const postDoc = await Post.findById(id);
+
+    res.json(postDoc)
+})
+
+// update post
+app.put('/post/:id', upload.single('image'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { title, description, content, tag } = req.body;
+
+        let updatedPost;
+
+        if (req.file) {
+            // If a new image is uploaded, convert it to base64
+            const image = req.file.buffer.toString('base64');
+            updatedPost = await Post.findByIdAndUpdate(id, { title, description, content, tag, image }, { new: true });
+        } else {
+            // If no new image is uploaded, use the existing image
+            updatedPost = await Post.findByIdAndUpdate(id, { title, description, content, tag }, { new: true });
+        }
+
+        res.json(updatedPost);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+// app.put('/updateSession/:id', upload.single('image'), async (req, res) => {
+//     try {
+//         const { title, description, tag } = req.body;
+//         const image = req.file ? req.file.buffer.toString('base64') : '';
+
+//         const updatedSession = await Session.findByIdAndUpdate(
+//             req.params.id,
+//             { title, description, image, tag },
+//             { new: true }
+//         );
+
+//         res.json(updatedSession);
+//     } catch (err) {
+//         console.error(err);
+//         res.status(500).json({ error: 'Internal Server Error' });
+//     }
+// });
 
 
 app.listen(PORT, () => {
