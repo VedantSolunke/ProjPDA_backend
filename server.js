@@ -17,12 +17,12 @@ const secret = 'casd34r5h56u7juhybtve23456789i7juhytbgv8ik7juy'
 
 const PORT = process.env.PORT || 3001;
 
-mongoose.connect('mongodb://localhost:27017/', {
+mongoose.connect('mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
-// mongodb://localhost:27017/sessionapp
-// mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/sessionapp
+// mongodb://localhost:27017/
+// mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/
 
 app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
 app.use(express.json());
@@ -72,7 +72,11 @@ app.post('/login', async (req, res) => {
 app.get('/profile', (req, res) => {
     const { token } = req.cookies;
     jwt.verify(token, secret, {}, (err, info) => {
-        if (err) throw err;
+        if (err) {
+            console.error('JWT verification error:', err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+        console.log('User information:', info);
         res.json(info);
     });
 })
@@ -157,27 +161,23 @@ app.put('/post/:id', upload.single('image'), async (req, res) => {
     }
 });
 
+// delete post
+app.delete('/post/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
 
+        const deletedPost = await Post.findByIdAndDelete(id);
 
+        if (!deletedPost) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
 
-
-// app.put('/updateSession/:id', upload.single('image'), async (req, res) => {
-//     try {
-//         const { title, description, tag } = req.body;
-//         const image = req.file ? req.file.buffer.toString('base64') : '';
-
-//         const updatedSession = await Session.findByIdAndUpdate(
-//             req.params.id,
-//             { title, description, image, tag },
-//             { new: true }
-//         );
-
-//         res.json(updatedSession);
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ error: 'Internal Server Error' });
-//     }
-// });
+        res.json({ message: 'Post deleted successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
 
 app.listen(PORT, () => {
