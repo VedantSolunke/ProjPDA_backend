@@ -72,8 +72,9 @@ app.get('/profile', (req, res) => {
             console.error('JWT verification error:', err);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
-        console.log('User information:', info);
         res.json(info);
+        // console.log('User information:', info);
+
     });
 })
 
