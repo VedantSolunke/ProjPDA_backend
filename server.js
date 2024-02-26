@@ -1,34 +1,30 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
 const cors = require('cors');
-const User = require('./models/User')
+const User = require('./models/User');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken')
-const cookieParser = require('cookie-parser')
-const Post = require('./models/Post')
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const Post = require('./models/Post');
 
 const app = express();
 
 const saltRounds = 10;
 const salt = bcrypt.genSaltSync(saltRounds);
-const secret = 'casd34r5h56u7juhybtve23456789i7juhytbgv8ik7juy'
-
+const secret = process.env.JWT_SECRET || 'casd34r5h56u7juhybtve23456789i7juhytbgv8ik7juy';
 
 const PORT = process.env.PORT || 3001;
 
-mongoose.connect('mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/', {
+mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 });
-// mongodb://localhost:27017/
-// mongodb+srv://admin:1234@pda01.3kekgcg.mongodb.net/
 
-app.use(cors({ credentials: true, origin: 'http://localhost:3000' }));
+app.use(cors({ credentials: true, origin: process.env.CLIENT_ORIGIN }));
 app.use(express.json());
 app.use(cookieParser());
-
-
 
 // User Registration
 app.post('/register', async (req, res) => {
