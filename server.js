@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const Post = require('./models/Post');
 const nodemailer = require('nodemailer');
+
 const app = express();
 
 const saltRounds = 10;
@@ -38,51 +39,49 @@ app.post('/register', async (req, res) => {
     } catch (error) {
         res.status(400).json(error);
     }
-
 });
 
 // Login
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    const userDoc = await User.findOne({ username });
-    const passOk = bcrypt.compareSync(password, userDoc.password)
-
-    if (passOk) {
-        // logged in
-        jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
-            if (err) throw err;
-            res.cookie('token', token).json({
-                id: userDoc._id,
-                username
-            });
-        })
-
-
-    } else {
-        res.status(400).json('Wrong Credentials');
+    try {
+        const userDoc = await User.findOne({ username });
+        if (!userDoc) {
+            return res.status(400).json({ error: 'User not found' });
+        }
+        const passOk = bcrypt.compareSync(password, userDoc.password);
+        if (!passOk) {
+            return res.status(400).json({ error: 'Wrong credentials' });
+        }
+        // Generate JWT token
+        const token = jwt.sign({ username, id: userDoc._id }, secret);
+        // Set the token in a cookie
+        res.cookie('token', token, { httpOnly: true }).json({
+            id: userDoc._id,
+            username
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-})
-
+});
 
 // Get Profile
 app.get('/profile', (req, res) => {
     const { token } = req.cookies;
-    jwt.verify(token, secret, {}, (err, info) => {
+    jwt.verify(token, secret, (err, decoded) => {
         if (err) {
             console.error('JWT verification error:', err);
-            return res.status(500).json({ error: 'Internal Server Error' });
+            return res.status(401).json({ error: 'Unauthorized' });
         }
-        res.json(info);
-        // console.log('User information:', info);
-
+        res.json(decoded);
     });
-})
-
+});
 
 // Logout
 app.post('/logout', (req, res) => {
-    res.cookie('token', '').json('ok');
-})
+    res.clearCookie('token').json('Logout successful');
+});
 
 // Multer setup for handling file uploads
 const storage = multer.memoryStorage();
@@ -93,11 +92,10 @@ app.post('/createPost', upload.single('image'), async (req, res) => {
     try {
         const { title, description, content, tag } = req.body;
         const image = req.file ? req.file.buffer.toString('base64') : '';
-
         const post = await Post.create({ title, description, content, image, tag });
         res.json(post);
     } catch (err) {
-        console.error(err);
+        console.error('Create post error:', err);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -176,37 +174,35 @@ app.delete('/post/:id', async (req, res) => {
     }
 });
 
-
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
-
-
-var transporter = nodemailer.createTransport({
+// Nodemailer setup
+const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
         user: 'acesoham322@gmail.com',
         pass: 'tcfg zfoa msor erkm'
-      }
-  });
-  app.post('/mail', async (req, res) => {
-    const { name, email, msg } = req.body;
+    }
+});
 
-    var mailOptions = {
+app.post('/mail', async (req, res) => {
+    const { name, email, msg } = req.body;
+    const mailOptions = {
         from: "acesoham322@gmail.com",
         to: 'pratham03d@gmail.com',
         subject: email,
         text: msg
     };
 
-    transporter.sendMail(mailOptions, function(error, info) {
+    transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
-            console.log(error);
+            console.error('Email sending error:', error);
             res.status(500).json({ error: 'Failed to send email' });
         } else {
-            console.log('Email sent: ' + info.response);
+            console.log('Email sent:', info.response);
             res.status(200).json({ message: 'Email sent successfully' });
         }
     });
 });
 
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
