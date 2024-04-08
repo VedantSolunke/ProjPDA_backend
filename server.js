@@ -8,7 +8,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const Post = require('./models/Post');
-
+const nodemailer = require('nodemailer');
 const app = express();
 
 const saltRounds = 10;
@@ -180,3 +180,33 @@ app.delete('/post/:id', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+
+var transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'acesoham322@gmail.com',
+        pass: 'tcfg zfoa msor erkm'
+      }
+  });
+  app.post('/mail', async (req, res) => {
+    const { name, email, msg } = req.body;
+
+    var mailOptions = {
+        from: "acesoham322@gmail.com",
+        to: 'pratham03d@gmail.com',
+        subject: email,
+        text: msg
+    };
+
+    transporter.sendMail(mailOptions, function(error, info) {
+        if (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Failed to send email' });
+        } else {
+            console.log('Email sent: ' + info.response);
+            res.status(200).json({ message: 'Email sent successfully' });
+        }
+    });
+});
+
