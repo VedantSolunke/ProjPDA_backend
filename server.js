@@ -32,7 +32,14 @@ mongoose
     console.error("Failed to connect to MongoDB", err);
   });
 
-app.use(cors({ credentials: true, origin: process.env.CLIENT_ORIGIN }));
+// CORS Configuration
+const corsOptions = {
+  origin:
+    process.env.CLIENT_ORIGIN || "https://proj-pda-frontend-ebon.vercel.app",
+  credentials: true, // allow credentials like cookies to be sent
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
 
