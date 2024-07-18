@@ -32,7 +32,7 @@ mongoose
     console.error("Failed to connect to MongoDB", err);
   });
 
-app.use(cors({ credentials: true, origin: process.env.CLIENT_ORIGIN }));
+// app.use(cors({ credentials: true, origin: process.env.CLIENT_ORIGIN }));
 app.use(express.json());
 app.use(cookieParser());
 
