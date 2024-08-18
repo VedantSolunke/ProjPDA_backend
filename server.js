@@ -36,9 +36,8 @@ mongoose
 const corsOptions = {
   origin:
     process.env.CLIENT_ORIGIN || "https://proj-pda-frontend-ebon.vercel.app",
-  credentials: true, // allow credentials like cookies to be sent
+  optionsSuccessStatus: 200,
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
